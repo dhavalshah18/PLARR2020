@@ -4,7 +4,7 @@ project(exercise01)
 ###########################################################################################
 
 ## OpenCV
-find_package(OpenCV 3 REQUIRED)
+find_package(OpenCV REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})
 
 add_definitions( -DDATA_DIR="${PROJECT_SOURCE_DIR}/data"  )
