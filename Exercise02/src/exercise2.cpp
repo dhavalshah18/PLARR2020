@@ -46,20 +46,20 @@ int main(int argc, char* argv[])
     // -------------------------------------------------------------------------
 
     // Step 1: Detect keypoints and extrahamming distancect descriptors
-    std::vector<cv::KeyPoint> objKeypoints, sceneKeypoints;
-    cv::Mat objDescriptors, sceneDescriptors;
+    std::vector<cv::KeyPoint> keypointsObj, keypointsScene;
+    cv::Mat descriptorsObj, descriptorsScene;
 
-    cv::Ptr<cv::FeatureDetector> detector = cv::ORB::create();
-    detector->detectAndCompute(imgObj, cv::noArray(), objKeypoints, objDescriptors);
-    detector->detectAndCompute(imgScene, cv::noArray(), sceneKeypoints, sceneDescriptors);
+    cv::Ptr<cv::FeatureDetector> detector = cv::ORB::create(2000);
+    detector->detectAndCompute(imgObj, cv::noArray(), keypointsObj, descriptorsObj);
+    detector->detectAndCompute(imgScene, cv::noArray(), keypointsScene, descriptorsScene);
 	
     // Step 2: Draw keypoints on the images and save them as
 	//         obj -> "task_a_1.png" and scene -> "task_a_2.png"
-	cv::Mat imgObjKeypoints, imgSceneKeypoints;
-    cv::drawKeypoints(imgObj, objKeypoints, imgObjKeypoints);
-    cv::drawKeypoints(imgScene, sceneKeypoints, imgSceneKeypoints);
-    cv::imwrite(data_directory + "/task_a_1.png", imgObjKeypoints);
-    cv::imwrite(data_directory + "/task_a_2.png", imgSceneKeypoints);
+	cv::Mat imgKeypointsObj, imgKeypointsScene;
+    cv::drawKeypoints(imgObj, keypointsObj, imgKeypointsObj);
+    cv::drawKeypoints(imgScene, keypointsScene, imgKeypointsScene);
+    cv::imwrite(data_directory + "/task_a_1.png", imgKeypointsObj);
+    cv::imwrite(data_directory + "/task_a_2.png", imgKeypointsScene);
 
 
     // -------------------------------------------------------------------------
@@ -67,10 +67,14 @@ int main(int argc, char* argv[])
     // -------------------------------------------------------------------------
 
     // Step 1: Match descriptors
-    
+    cv::Ptr<cv::DescriptorMatcher> matcher = cv::DescriptorMatcher::create(cv::DescriptorMatcher::BRUTEFORCE);
+    std::vector<cv::DMatch> matches;
+    matcher->match(descriptorsObj, descriptorsScene, matches);
 
     // Step 2: Draw corresponding pair and save it as "task_b.png"
-
+    cv::Mat imgMatches;
+    cv::drawMatches(imgObj, keypointsObj, imgScene, keypointsScene, matches, imgMatches);
+    cv::imwrite(data_directory + "/task_b.png", imgMatches);
 
     // -------------------------------------------------------------------------
     // Task c) Estimate homography 
