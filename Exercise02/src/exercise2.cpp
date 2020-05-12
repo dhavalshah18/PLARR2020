@@ -38,7 +38,7 @@ int main(int argc, char* argv[])
 	const std::string output_directory = OUTPUT_DIR;
 
 	// Load images
-    cv::Mat imgObj = cv::imread(data_directory + "/B1_original.JPG");
+    cv::Mat imgObj = cv::imread(data_directory + "/B1_original.jpg");
     cv::Mat imgScene = cv::imread(data_directory + "/scene.jpg");
 
     // -------------------------------------------------------------------------
@@ -46,10 +46,18 @@ int main(int argc, char* argv[])
     // -------------------------------------------------------------------------
 
     // Step 1: Detect keypoints and extrahamming distancect descriptors
-
+    std::vector<cv::KeyPoint> keypoints1, keypoints2;
+    cv::Ptr<cv::FeatureDetector> detector = cv::ORB::create();
+    detector->detect(imgObj, keypoints1);
+    detector->detect(imgScene, keypoints2);
 	
     // Step 2: Draw keypoints on the images and save them as
 	//         obj -> "task_a_1.png" and scene -> "task_a_2.png"
+	cv::Mat objKeypoints, sceneKeypoints;
+    cv::drawKeypoints(imgObj, keypoints1, objKeypoints);
+    cv::drawKeypoints(imgScene, keypoints2, sceneKeypoints);
+    cv::imwrite(data_directory + "/task_a_1.png", objKeypoints);
+    cv::imwrite(data_directory + "/task_a_2.png", sceneKeypoints);
 
 
     // -------------------------------------------------------------------------
