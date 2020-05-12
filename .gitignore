@@ -4,3 +4,5 @@ build/
 *cmake_install.cmake
 *Makefile
 *user
+.idea/
+*/data/
