@@ -18,18 +18,61 @@ void drawHomographyRect(cv::Size imgObjSize, const cv::Mat& homography, const cv
 	}
 
 	// define object corners in the object image
-	std::vector<cv::Point2d> cornersObj{ cv::Point2d(0,                0),
+	std::vector<cv::Point2d> cornersObj{ cv::Point2d(0, 0),
 										cv::Point2d(imgObjSize.width, 0),
 										cv::Point2d(imgObjSize.width, imgObjSize.height),
-										cv::Point2d(0,                imgObjSize.height) };
+										cv::Point2d(0, imgObjSize.height) };
 
 	std::vector<cv::Point2d> cornersScene(4);
 
 	// compute object corners in the scene image using homography
-
+    cv::perspectiveTransform(cornersObj, cornersScene, homography);
 	
 	// draw rectangle of detected object
+    cv::line( imgMatches, cornersScene[0] +
+       cv::Point2d( imgObjSize.width, 0), cornersScene[1] + cv::Point2d( imgObjSize.width, 0),
+       cv::Scalar(0, 255, 0), 4 );
+    cv::line( imgMatches, cornersScene[1] +
+       cv::Point2d( imgObjSize.width, 0), cornersScene[2] + cv::Point2d( imgObjSize.width, 0),
+       cv::Scalar( 0, 255, 0), 4 );
+    cv::line( imgMatches, cornersScene[2] +
+       cv::Point2d( imgObjSize.width, 0), cornersScene[3] + cv::Point2d( imgObjSize.width, 0),
+       cv::Scalar( 0, 255, 0), 4 );
+    cv::line( imgMatches, cornersScene[3] +
+       cv::Point2d( imgObjSize.width, 0), cornersScene[0] + cv::Point2d( imgObjSize.width, 0),
+       cv::Scalar( 0, 255, 0), 4 );
 
+}
+
+cv::Mat overlayObject(cv::Size imgObjSize, const cv::Mat& homography, const cv::Mat& imgScene, const cv::Mat& imgObjOverlay) {
+    // define object corners in the object image
+    std::vector<cv::Point2d> cornersObj{ cv::Point2d(0,                0),
+                                         cv::Point2d(imgObjSize.width, 0),
+                                         cv::Point2d(imgObjSize.width, imgObjSize.height),
+                                         cv::Point2d(0,                imgObjSize.height) };
+
+    std::vector<cv::Point2d> cornersScene(4);
+
+    // compute object corners in the scene image using homography
+    cv::perspectiveTransform(cornersObj, cornersScene, homography);
+
+    // Apply transform to new object
+    // New mat has same size as scene
+    cv::Mat imgObj2Transformed;
+    cv::warpPerspective(imgObjOverlay, imgObj2Transformed, homography, imgScene.size());
+
+    // Loop to overlay new object on scene
+    for (int r = 0; r < imgScene.rows; r++) {
+        for (int c = 0; c < imgScene.cols; c++) {
+            // Check if background
+            if (imgObj2Transformed.at<double>(r, c) == 0){
+                // Replace background with actual scene
+                imgObj2Transformed.at<double>(r, c) = imgScene.at<double>(r, c);
+            }
+        }
+    }
+
+    return imgObj2Transformed;
 }
 
 int main(int argc, char* argv[])
@@ -49,7 +92,7 @@ int main(int argc, char* argv[])
     std::vector<cv::KeyPoint> keypointsObj, keypointsScene;
     cv::Mat descriptorsObj, descriptorsScene;
 
-    cv::Ptr<cv::FeatureDetector> detector = cv::ORB::create(2000);
+    cv::Ptr<cv::ORB> detector = cv::ORB::create(2000);
     detector->detectAndCompute(imgObj, cv::noArray(), keypointsObj, descriptorsObj);
     detector->detectAndCompute(imgScene, cv::noArray(), keypointsScene, descriptorsScene);
 	
@@ -58,6 +101,9 @@ int main(int argc, char* argv[])
 	cv::Mat imgKeypointsObj, imgKeypointsScene;
     cv::drawKeypoints(imgObj, keypointsObj, imgKeypointsObj);
     cv::drawKeypoints(imgScene, keypointsScene, imgKeypointsScene);
+    cv::imwrite(output_directory + "/task_a_1.png", imgKeypointsObj);
+    cv::imwrite(output_directory + "/task_a_2.png", imgKeypointsScene);
+
     cv::imwrite(data_directory + "/task_a_1.png", imgKeypointsObj);
     cv::imwrite(data_directory + "/task_a_2.png", imgKeypointsScene);
 
@@ -67,28 +113,51 @@ int main(int argc, char* argv[])
     // -------------------------------------------------------------------------
 
     // Step 1: Match descriptors
-    cv::Ptr<cv::DescriptorMatcher> matcher = cv::DescriptorMatcher::create(cv::DescriptorMatcher::BRUTEFORCE);
+    cv::Ptr<cv::DescriptorMatcher> matcher = cv::DescriptorMatcher::create(cv::DescriptorMatcher::BRUTEFORCE_HAMMING);
+//    cv::FlannBasedMatcher matcher;
     std::vector<cv::DMatch> matches;
     matcher->match(descriptorsObj, descriptorsScene, matches);
+
 
     // Step 2: Draw corresponding pair and save it as "task_b.png"
     cv::Mat imgMatches;
     cv::drawMatches(imgObj, keypointsObj, imgScene, keypointsScene, matches, imgMatches);
+    cv::imwrite(output_directory + "/task_b.png", imgMatches);
+
     cv::imwrite(data_directory + "/task_b.png", imgMatches);
+
 
     // -------------------------------------------------------------------------
     // Task c) Estimate homography 
     // -------------------------------------------------------------------------
 
 	// Step 1: Compute homography with RANSAC
+	// Localize object
+	std::vector<cv::Point2f> obj, scene;
+	for (int i = 0; i < matches.size(); i++) {
+	    obj.push_back(keypointsObj[matches[i].queryIdx].pt);
+        scene.push_back(keypointsScene[matches[i].trainIdx].pt);
+	}
 
+    cv::Mat matchesMask, homography;
+    homography = cv::findHomography(obj, scene, cv::RANSAC, 3, matchesMask);
 
     // Step 2: Display inlier matches
+    cv::Mat imgInliers;
+    cv::drawMatches(imgObj, keypointsObj, imgScene, keypointsScene, matches, imgInliers,
+            cv::Scalar::all(-1), cv::Scalar::all(-1), std::vector<char> (matchesMask));
 
+    cv::imshow("Inlier matches", imgInliers);
+    cv::waitKey(0);
 
     // Step 3: Draw object rectangle in the scene using drawHomographyRect() and
 	//         save it as "task_c.png"
+    drawHomographyRect(imgObj.size(), homography, imgInliers);
+    cv::imwrite(output_directory + "/task_c.png", imgInliers);
+    cv::imwrite(data_directory + "/task_c.png", imgInliers);
 
+    cv::imshow("Object", imgInliers);
+    cv::waitKey(0);
 
     // -------------------------------------------------------------------------
     // Task d) AR object
@@ -96,37 +165,71 @@ int main(int argc, char* argv[])
 
     // Step 1: Overlay another object on the detected object in the scene for AR
 	//         and save it as "task_d.png"
+    cv::Mat imgObjA2 = cv::imread(data_directory + "/A2_original.JPG");
+    cv::Mat imgSceneOverlayed;
+    imgSceneOverlayed = overlayObject(imgObj.size(), homography, imgScene, imgObjA2);
 
+    cv::imshow("Overlay", imgSceneOverlayed);
+    cv::waitKey(0);
 
-#if 0
+    cv::imwrite(data_directory + "/task_d.png", imgSceneOverlayed);
+    cv::imwrite(output_directory + "/task_d.png", imgSceneOverlayed);
+
     // -------------------------------------------------------------------------
     // Task e) Augment on video
     // -------------------------------------------------------------------------
 
-    // Augmnet the video sequence using the same Object.
+    // Augment the video sequence using the same Object.
 	
 	cv::VideoCapture capture;
     capture.open(data_directory + "/sequence.mp4");
-	cv::VideoWriter writer(output_directory + "/task_e.mp4", CV_FOURCC('M', 'J', 'P', 'G'), 10, cv::Size(852,480));
+	cv::VideoWriter writer(data_directory + "/task_e.mp4",
+	        cv::VideoWriter::fourcc('M', 'J', 'P', 'G'),
+	        10, cv::Size(852,480));
 	
 	cv::Mat imgVideo;
+
 	while (capture.read(imgVideo))
     {
+        obj.clear();
+        scene.clear();
+
         // Detect the planer object, using the code from Task a) to d).
 
-		cv::imshow("Scene image", imgVideo);
-		
+        detector->detectAndCompute(imgObj, cv::noArray(), keypointsObj, descriptorsObj);
+        detector->detectAndCompute(imgVideo, cv::noArray(), keypointsScene, descriptorsScene);
+
+        matcher->match(descriptorsObj, descriptorsScene, matches);
+
+        for (int i = 0; i < matches.size(); i++) {
+            obj.push_back(keypointsObj[matches[i].queryIdx].pt);
+            scene.push_back(keypointsScene[matches[i].trainIdx].pt);
+        }
+
+        homography = cv::findHomography(obj, scene, cv::RANSAC, 3, matchesMask);
+
+        cv::drawMatches(imgObj, keypointsObj, imgVideo, keypointsScene, matches, imgMatches,
+                        cv::Scalar::all(-1), cv::Scalar::all(-1),
+                        std::vector<char> (matchesMask));
+
+        drawHomographyRect(imgObj.size(), homography, imgMatches);
+
+        imgVideo = overlayObject(imgObj.size(), homography, imgVideo, imgObjA2);
+
+        writer.write(imgVideo);
+
+//        cv::imshow("Scene image", imgVideo);
+//
         int key = cv::waitKey(1);
         if (key=='q' || key==27){
             break;
         }
+
     }
 
     capture.release();
     writer.release();
 
-#endif
-	
 
 	return 0;
 }
