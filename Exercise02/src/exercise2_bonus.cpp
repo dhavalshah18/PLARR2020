@@ -21,24 +21,62 @@ int main(int argc, char* argv[])
     // -------------------------------------------------------------------------
     // Task a) Feature Detection and description
     // -------------------------------------------------------------------------
+    // imgLeft_ is scene, imgRight is object
+    std::vector<cv::KeyPoint> keypointsObj, keypointsScene;
+    cv::Mat descriptorsObj, descriptorsScene;
 
+    cv::Ptr<cv::BRISK> detector = cv::BRISK::create();
+    detector->detectAndCompute(imgRight, cv::noArray(), keypointsObj, descriptorsObj);
+    detector->detectAndCompute(imgLeft_, cv::noArray(), keypointsScene, descriptorsScene);
+
+    descriptorsObj.convertTo(descriptorsObj, CV_32F);
+    descriptorsScene.convertTo(descriptorsScene, CV_32F);
 
     // -------------------------------------------------------------------------
     // Task b) Keypoint matching
     // -------------------------------------------------------------------------
+//    cv::Ptr<cv::DescriptorMatcher> matcher = cv::DescriptorMatcher::create(cv::DescriptorMatcher::BRUTEFORCE_HAMMING);
+    cv::FlannBasedMatcher matcher;
 
+    std::vector<cv::DMatch> matches;
+    matcher.match(descriptorsObj, descriptorsScene, matches);
+
+    cv::Mat imgMatches;
+    cv::drawMatches(imgRight, keypointsObj, imgLeft_, keypointsScene, matches, imgMatches);
 
     // -------------------------------------------------------------------------
     // Task c) Homography
     // -------------------------------------------------------------------------
+    std::vector<cv::Point2f> obj, scene;
+    for (int i = 0; i < matches.size(); i++) {
+        obj.push_back(keypointsObj[matches[i].queryIdx].pt);
+        scene.push_back(keypointsScene[matches[i].trainIdx].pt);
+    }
+
+    cv::Mat matchesMask, homography;
+    homography = cv::findHomography(obj, scene, cv::RANSAC, 3, matchesMask);
 
 
     // -------------------------------------------------------------------------
     // Task d) Stitch the right image on left image
     // -------------------------------------------------------------------------
+    cv::Mat imgTransformed;
+    cv::warpPerspective(imgRight, imgTransformed, homography, imgLeft.size());
 
     // Overlay right image onto left image and save it as "bonus.png"
+    cv::Mat imgStitched;
+    imgLeft.copyTo(imgStitched);
 
+    for (int r = 0; r < imgStitched.rows; r++) {
+        for (int c = 0; c < imgStitched.cols; c++) {
+            if (imgStitched.at<double>(r, c) == 0){
+                // Replace background with actual scene
+                imgStitched.at<double>(r, c) = imgTransformed.at<double>(r, c);
+            }
+        }
+    }
 
-	return 0;
+    cv::imwrite(output_directory + "/bonus.png", imgStitched);
+    cv::imwrite(data_directory + "/bonus.png", imgStitched);
+    return 0;
 }
