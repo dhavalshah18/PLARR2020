@@ -183,9 +183,12 @@ int main(int argc, char* argv[])
 	
 	cv::VideoCapture capture;
     capture.open(data_directory + "/sequence.mp4");
-	cv::VideoWriter writer(data_directory + "/task_e.mp4",
+	cv::VideoWriter writer(output_directory + "/task_e.mp4",
 	        cv::VideoWriter::fourcc('M', 'J', 'P', 'G'),
 	        10, cv::Size(852,480));
+    cv::VideoWriter writer2(data_directory + "/task_e.mp4",
+                           cv::VideoWriter::fourcc('M', 'J', 'P', 'G'),
+                           10, cv::Size(852,480));
 	
 	cv::Mat imgVideo;
 
@@ -217,6 +220,7 @@ int main(int argc, char* argv[])
         imgVideo = overlayObject(imgObj.size(), homography, imgVideo, imgObjA2);
 
         writer.write(imgVideo);
+        writer2.write(imgVideo);
 
 //        cv::imshow("Scene image", imgVideo);
 //
@@ -229,6 +233,7 @@ int main(int argc, char* argv[])
 
     capture.release();
     writer.release();
+    writer2.release();
 
 
 	return 0;
