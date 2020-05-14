@@ -29,17 +29,14 @@ int main(int argc, char* argv[])
     detector->detectAndCompute(imgRight, cv::noArray(), keypointsObj, descriptorsObj);
     detector->detectAndCompute(imgLeft_, cv::noArray(), keypointsScene, descriptorsScene);
 
-    descriptorsObj.convertTo(descriptorsObj, CV_32F);
-    descriptorsScene.convertTo(descriptorsScene, CV_32F);
 
     // -------------------------------------------------------------------------
     // Task b) Keypoint matching
     // -------------------------------------------------------------------------
-//    cv::Ptr<cv::DescriptorMatcher> matcher = cv::DescriptorMatcher::create(cv::DescriptorMatcher::BRUTEFORCE_HAMMING);
-    cv::FlannBasedMatcher matcher;
+    cv::Ptr<cv::DescriptorMatcher> matcher = cv::DescriptorMatcher::create(cv::DescriptorMatcher::BRUTEFORCE_HAMMING);
 
     std::vector<cv::DMatch> matches;
-    matcher.match(descriptorsObj, descriptorsScene, matches);
+    matcher->match(descriptorsObj, descriptorsScene, matches);
 
     cv::Mat imgMatches;
     cv::drawMatches(imgRight, keypointsObj, imgLeft_, keypointsScene, matches, imgMatches);
@@ -55,7 +52,6 @@ int main(int argc, char* argv[])
 
     cv::Mat matchesMask, homography;
     homography = cv::findHomography(obj, scene, cv::RANSAC, 3, matchesMask);
-
 
     // -------------------------------------------------------------------------
     // Task d) Stitch the right image on left image
