@@ -1,0 +1,15 @@
+
+# Basic packages required in this assignment.
+
+numpy
+scipy
+torch
+torchvision
+ipython
+jupyter
+jupyterlab
+notebook
+matplotlib
+Pillow
+scikit-learn
+tensorboard
