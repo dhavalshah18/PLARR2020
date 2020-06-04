@@ -117,8 +117,22 @@ void GeneratePointCloud() {
     // TODO: Create a pointcloud from the depth map by back-projecting
     //       it using the camera intrinsics
     // #######################################################################################
+    for (int u = 0; u < intrinsics.width; u++) {
+        for (int v = 0; v < intrinsics.height; v++) {
+            auto z = depth.at<ushort>(v, u);
+            auto x = (u - intrinsics.cx)*z/intrinsics.fx;
+            auto y = (v - intrinsics.cy)*z/intrinsics.fy;
 
-    savePointCloudsPLY(data_dir + "/a.ply", pc);
+            pc.vertices.emplace_back(Eigen::Vector3f(x, y, z));
+
+            pc.colors.emplace_back(RGB.at<cv::Vec3b>(v, u));
+
+        }
+    }
+
+    std::cout << "Saving pointcloud ..." << std::endl;
+    if (savePointCloudsPLY(data_dir + "/a.ply", pc))
+        std::cout << "Done saving pointcloud." << std::endl;
 }
 
 void GeneratePointCloudFused() {
@@ -136,10 +150,29 @@ void GeneratePointCloudFused() {
     //       Your can use the following helper function to load the poses for frame i
     //       Eigen::Matrix4f pose_camera2world = LoadPose(GetFileName(data_dir, i) + ".transform.txt");
     // #######################################################################################
+    for (int i = 0; i < num_frames; i++) {
+        cv::Mat depth = cv::imread(GetFileName(data_dir, i) + ".depth.png", cv::IMREAD_UNCHANGED);
+        cv::Mat RGB = cv::imread(GetFileName(data_dir, i) + ".color.jpg", cv::IMREAD_UNCHANGED);
+        Eigen::Matrix4f pose_camera2world = LoadPose(GetFileName(data_dir, i) + ".transform.txt");
+
+        for (int u = 0; u < intrinsics.width; u++) {
+            for (int v = 0; v < intrinsics.height; v++) {
+                auto z_ = depth.at<ushort>(v, u);
+                auto x_ = (u - intrinsics.cx)*z_/intrinsics.fx;
+                auto y_ = (v - intrinsics.cy)*z_/intrinsics.fy;
+
+                Eigen::Vector4f world_point = pose_camera2world*Eigen::Vector4f(x_, y_, z_, 1);
+
+                pc.vertices.emplace_back(world_point.head<3>());
+
+                pc.colors.emplace_back(RGB.at<cv::Vec3b>(v, u));
+            }
+        }
+    }
 
     std::cout << "Saving fused pointcloud ..." << std::endl;
     if (savePointCloudsPLY(data_dir + "/b.ply", pc)) 
-        std::cout << "Done saving pointloud." << std::endl;
+        std::cout << "Done saving pointcloud." << std::endl;
 }
 
 void GenerateLabelImage() {
@@ -150,13 +183,73 @@ void GenerateLabelImage() {
     // Load intrinsics
     Intrinsics intrinsics = LoadIntrinsics(data_dir);
 
-    cv::Mat labels_101, labels_106;
+    cv::Mat RGB = cv::imread(GetFileName(data_dir, 0) + ".color.jpg", cv::IMREAD_UNCHANGED);
+
+    cv::Mat labels_101(cv::Size(intrinsics.width, intrinsics.height), RGB.type(), cv::Scalar(0, 0, 0));
+    cv::Mat labels_106(cv::Size(intrinsics.width, intrinsics.height), RGB.type(), cv::Scalar(0, 0, 0));
 
     // #######################################################################################
     // TODO: Merge point cloud of frames 0-9 with semantic labels
     // TODO: Project point cloud into frame 101
     // TODO: Project point cloud into frame 106
     // #######################################################################################
+    PointCloud pc(num_frames * intrinsics.width * intrinsics.height);
+
+    // Sementaic labels point cloud
+    for (int i = 0; i < num_frames; i++) {
+        cv::Mat depth = cv::imread(GetFileName(data_dir, i) + ".depth.png", cv::IMREAD_UNCHANGED);
+        cv::Mat label = cv::imread(GetFileName(data_dir, i) + ".label.png", cv::IMREAD_UNCHANGED);
+        Eigen::Matrix4f pose_camera2world = LoadPose(GetFileName(data_dir, i) + ".transform.txt");
+
+        for (int u = 0; u < intrinsics.width; u++) {
+            for (int v = 0; v < intrinsics.height; v++) {
+                auto z_ = depth.at<ushort>(v, u);
+                auto x_ = (u - intrinsics.cx)*z_/intrinsics.fx;
+                auto y_ = (v - intrinsics.cy)*z_/intrinsics.fy;
+
+                Eigen::Vector4f world_point = pose_camera2world*Eigen::Vector4f(x_, y_, z_, 1);
+
+                pc.vertices.emplace_back(world_point.head<3>());
+                pc.colors.emplace_back(label.at<cv::Vec3b>(v, u));
+            }
+        }
+    }
+
+    std::vector<Eigen::Matrix4f> poses;
+    poses.emplace_back(LoadPose(GetFileName(data_dir, 101) + ".transform.txt").inverse());
+    poses.emplace_back(LoadPose(GetFileName(data_dir, 106) + ".transform.txt").inverse());
+    int num_current{0};
+
+    for (const auto& loaded_pose : poses) {
+        for (int i = 0; i < pc.vertices.size(); i++) {
+            Eigen::Vector4f homogenous_point{pc.vertices.at(i)(0), pc.vertices.at(i)(1),
+                                             pc.vertices.at(i)(2), 1};
+            Eigen::Vector4f img_point = loaded_pose*homogenous_point;
+
+            cv::Vec3b current_label = pc.colors.at(i);
+            auto z = img_point(2);
+            auto u = ((intrinsics.fx/z)*img_point(0)) + intrinsics.cx;
+            auto v = ((intrinsics.fy/z)*img_point(1)) + intrinsics.cy;
+
+            if ((u < intrinsics.width && u > 0) && (v < intrinsics.height && v > 0)) {
+                if ((num_current == 0) &&
+                        (labels_101.at<cv::Vec3b>(v, u) == cv::Vec3b(0, 0, 0))){
+                    labels_101.at<cv::Vec3b>(v, u) = current_label;
+                }
+                else if ((num_current == 1) &&
+                        (labels_106.at<cv::Vec3b>(v, u) == cv::Vec3b(0, 0, 0))){
+                    labels_106.at<cv::Vec3b>(v, u) = current_label;
+                }
+            }
+        }
+
+        ++num_current;
+    }
+
+    cv::imshow("101", labels_101);
+    cv::imshow("106", labels_106);
+    cv::waitKey(0);
+
     if (!labels_101.empty() && !labels_106.empty()) {
         cv::imwrite(data_dir + "/c_101.png", labels_101);
         cv::imwrite(data_dir + "/c_106.png", labels_106);
@@ -171,11 +264,22 @@ void GenerateDenseLabelImage() {
     // Load intrinsics
     Intrinsics intrinsics = LoadIntrinsics(data_dir);
 
-    cv::Mat labels_106;
+    cv::Mat labels_101 = cv::imread(data_dir + "/c_101.png", cv::IMREAD_UNCHANGED);
+    cv::Mat labels_106 = cv::imread(data_dir + "/c_106.png", cv::IMREAD_UNCHANGED);
 
     // #######################################################################################
     // TODO: Try to think of a way, how to generate a more dense label map for frame 106
     // #######################################################################################
+    // Try opening morpholigical operation
+    cv::Mat element = cv::getStructuringElement(0, cv::Size(3, 3));
+
+    cv::morphologyEx(labels_101, labels_101, cv::MORPH_CLOSE, element);
+    cv::morphologyEx(labels_106, labels_106, cv::MORPH_CLOSE, element);
+
+    cv::imshow("101", labels_101);
+    cv::imshow("106", labels_106);
+    cv::waitKey(0);
+
     if (!labels_106.empty())
         cv::imwrite(data_dir + "/d.png", labels_106);
 }
