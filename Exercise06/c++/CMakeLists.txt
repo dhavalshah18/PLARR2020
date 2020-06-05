@@ -9,9 +9,8 @@ include_directories(${Open3D_INCLUDE_DIRS})
 
 add_definitions( -DDATA_DIR="${PROJECT_SOURCE_DIR}/data"  )
 
-
 ###########################################################################################
-
+SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -fopenmp")
 
 # TARGETS
 add_executable(${PROJECT_NAME}_01 src/Exercise06_1/main.cpp)

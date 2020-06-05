@@ -1,17 +1,13 @@
 #include <iostream>
-#include <Core/Core.h>
-#include <IO/IO.h>
-#include <Visualization/Visualization.h>
-#include <Registration/Registration.h>
-
+#include <Open3D/Open3D.h>
 
 int main (int argc, char** argv)
 {
-    std::string projectSrcDir = PROJECT_SOURCE_DIR;
+    const std::string data_directory = DATA_DIR;
     
     // Load point clouds and estimate their normals
-    std::string fileNameRef = projectSrcDir + "/data/pointcloud_chair0.pcd";
-    std::string fileNameTar = projectSrcDir + "/data/pointcloud_chair1.pcd";
+    std::string fileNameRef = data_directory + "/pointcloud_chair0.pcd";
+    std::string fileNameTar = data_directory + "/pointcloud_chair1.pcd";
     
 
     // down sample the point cloud pair

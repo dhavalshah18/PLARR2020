@@ -1,20 +1,16 @@
 #include <iostream>
-#include <Core/Core.h>
-#include <IO/IO.h>
-#include <Visualization/Visualization.h>
-#include <Registration/Registration.h>
+#include <Open3D/Open3D.h>
 
 
 int main (int argc, char** argv)
 {
-    
-    std::string projectSrcDir = PROJECT_SOURCE_DIR;
+    const std::string data_directory = DATA_DIR;
 
     // loop for depth images on multiple view
     for(int i=0; i<7; i++){
 
         // Loading each point cloud from ply file
-	std::string filename_ply = projectSrcDir + "/data/dwarf0" + std::to_string(i) + ".ply";
+        std::string filename_ply = data_directory + "/dwarf0" + std::to_string(i) + ".ply";
         
     
         // Estimate normals and down-sample point clouds so that the point density is 5mm by using VoxelDownSample

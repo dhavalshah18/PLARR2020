@@ -1,14 +1,13 @@
 #include <iostream>
-#include <Core/Core.h>
-#include <IO/IO.h>
-#include <Visualization/Visualization.h>
+#include <Open3D/Open3D.h>
 
 int main (int argc, char** argv)
 {
-    std::string projectSrcDir = PROJECT_SOURCE_DIR;
-    
+    const std::string data_directory = DATA_DIR;
+
+
     // Load .pcd file to open3d.geometry.PointCloud
-    std::string modelFilename = projectSrcDir + "/data/bun0.pcd";
+    const std::string buny_path = data_directory+ "/data/bun0.pcd";
     
     
     // Visualize the point clouds using DrawGeometries
