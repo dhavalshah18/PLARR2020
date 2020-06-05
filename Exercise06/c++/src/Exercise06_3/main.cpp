@@ -14,7 +14,7 @@ int main (int argc, char** argv)
     for(int i=0; i<7; i++){
 
         // Loading each point cloud from ply file
-	std::string filename_ply = projectSrcDir + "data/dwarf0" + std::to_string(i) + ".ply";
+	std::string filename_ply = projectSrcDir + "/data/dwarf0" + std::to_string(i) + ".ply";
         
     
         // Estimate normals and down-sample point clouds so that the point density is 5mm by using VoxelDownSample
