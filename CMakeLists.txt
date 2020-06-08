@@ -17,4 +17,5 @@ add_subdirectory(Exercise02)
 #add_subdirectory(Exercise03)
 #add_subdirectory(Exercise04)
 add_subdirectory(Exercise05)
+add_subdirectory(Exercise06/c++)
 
